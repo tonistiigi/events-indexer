@@ -42,10 +42,20 @@ Indexer.prototype.get = function (key) {
 }
 
 Indexer.prototype.range = function (start, end) {
-  assert(end, end + ' is not a valid key')
+  if (!start) {
+    start = ''
+  }
+  if (end === undefined) {
+    if (start === '') {
+      end = ['\u9999']
+    }
+    else {
+      end = start
+    }
+  }
   var result = []
-  tree.walk(bytewise.encode(start), bytewise.encode(end), function(key, v) {
-    result.push(bytewise.decode(key), v)
+  this.tree.walk(bytewise.encode(start), bytewise.encode(end), function(key, v) {
+    result.push({k: bytewise.decode(key), v: v})
   })
   return result
 }

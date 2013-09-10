@@ -73,3 +73,60 @@ test('invalid arguments', function(t) {
 
 })
 
+
+test('range strings', function(t) {
+  t.plan(4)
+
+  var db = indexer()
+
+  db.set('foo', 'width', 1)
+  db.set('bar', 'width', 2)
+  db.set('fao', 'width', 3)
+
+  t.deepEqual(db.range(), [
+    {k: 'bar', v: {width: 2}},
+    {k: 'fao', v: {width: 3}},
+    {k: 'foo', v: {width: 1}},
+  ])
+
+  t.deepEqual(db.range('fao'), [
+    {k: 'fao', v: {width: 3}}
+  ])
+
+  t.deepEqual(db.range('f', 'g'), [
+    {k: 'fao', v: {width: 3}},
+    {k: 'foo', v: {width: 1}},
+  ])
+
+  t.deepEqual(db.range('g', 'z'), [])
+
+})
+
+
+test('range arrays', function(t) {
+  t.plan(3)
+
+  var db = indexer()
+
+  db.set(['foo', 11], 'width', 1)
+  db.set(['bar', 12], 'width', 2)
+  db.set(['fao', 13], 'width', 3)
+  db.set(['foo', 10], 'width', 4)
+
+  t.deepEqual(db.range(), [
+    {k: ['bar', 12], v: {width: 2}},
+    {k: ['fao', 13], v: {width: 3}},
+    {k: ['foo', 10], v: {width: 4}},
+    {k: ['foo', 11], v: {width: 1}},
+  ])
+
+  t.deepEqual(db.range(['foo'], ['foo', '\u9999']), [
+    {k: ['foo', 10], v: {width: 4}},
+    {k: ['foo', 11], v: {width: 1}},
+  ])
+
+  t.deepEqual(db.range(['foo', 'a'], ['\u9999']), [])
+
+})
+
+
