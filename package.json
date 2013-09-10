@@ -5,5 +5,9 @@
   "main": "indexer.js",
   "repository": "",
   "author": "Tõnis Tiigi <tonistiigi@gmail.com>",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "btreejs": "~0.2.0",
+    "bytewise": "~0.6.0"
+  }
 }
