@@ -1,0 +1,9 @@
+{
+  "name": "event-indexer",
+  "version": "0.0.0",
+  "description": "",
+  "main": "indexer.js",
+  "repository": "",
+  "author": "Tõnis Tiigi <tonistiigi@gmail.com>",
+  "license": "MIT"
+}
