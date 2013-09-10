@@ -130,3 +130,34 @@ test('range arrays', function(t) {
 })
 
 
+test('reduce', function(t) {
+  t.plan(2)
+
+  var db = indexer()
+
+  var avgwidth = db.reducer('avgwidth', function (values) {
+    var sum = 0
+    for (var i = 0; i < values.length; i++) {
+      sum += values[i]
+    }
+    return values.length && sum / values.length
+  })
+
+  avgwidth.set('foo', 1, 10)
+  avgwidth.set('bar', 2, 5)
+  avgwidth.set('bar', 3, 7)
+  avgwidth.set('foo', 4, 20)
+  avgwidth.set('foo', 5, 6)
+
+  db.set('foo', 'bar', 'baz')
+
+  t.deepEqual(db.get('foo'), {
+    bar: 'baz',
+    avgwidth: 12
+  })
+
+  t.deepEqual(db.get('bar'), {
+    avgwidth: 6
+  })
+
+})
