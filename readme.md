@@ -1,3 +1,6 @@
+WIP
+
+```
 var indexer = require('events-indexer')
 
 var db = indexer()
@@ -8,7 +11,7 @@ db.get(key)
 db.range(start, end)
 
 // listen for changes
-var reader = db.subscribe(start, end)
+var reader = db.subscribe(start, opt_end)
 reader.on('data', function() { })
 reader.close()
 
@@ -23,3 +26,4 @@ var avgWind = db.reducer('avgWind', function (values) {
 })
 
 avgWind.set(key, uid, 10)
+````
