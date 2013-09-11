@@ -61,7 +61,7 @@ Indexer.prototype.set = function (key, property, value) {
   }
   if (current.data[property] !== value) {
     current.data[property] = value
-    this.dispatch_(key, current.data)
+    this.dispatch_(key, current)
   }
 }
 
@@ -84,7 +84,7 @@ Indexer.prototype.merge = function (key, object) {
     }
   }
   if (changed) {
-    this.dispatch_(key, current.data)
+    this.dispatch_(key, current)
   }
 }
 
@@ -140,7 +140,7 @@ Indexer.prototype.dispatch_ = function (k, v) {
   for (var i = 0; i < this.listeners_.length; i++) {
     var s = this.listeners_[i]
     if (s.start <= keyenc && s.end >= keyenc) {
-      s.emit('data', [{k: k, v: v}])
+      s.emit('data', [{k: k, v: v.getData()}])
     }
   }
 }
@@ -168,7 +168,16 @@ Reducer.prototype.set = function (key, id, value) {
   else {
     rkey = [key, id]
   }
-  this.tree.put(bytewise.encode(rkey), value)
+  // don't like this. this should be handled by put. also need uncompiled version.
+  var rkeyenc = bytewise.encode(rkey)
+  var old = this.tree.root.search(rkeyenc)
+  if (old.leaf) {
+    old.leaf.value = value
+  }
+  else {
+    this.tree.put(rkeyenc, value)
+  }
+
   var keyenc = bytewise.encode(key)
   var current = this.indexer.tree.get(keyenc)
   if (current === undefined) {
@@ -176,6 +185,7 @@ Reducer.prototype.set = function (key, id, value) {
     this.indexer.tree.put(keyenc, current)
   }
   current.invalidateReducer(this)
+  this.indexer.dispatch_(key, current)
 }
 
 Reducer.prototype.run = function(key) {

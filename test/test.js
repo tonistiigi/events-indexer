@@ -255,3 +255,52 @@ test('subscribe', function(t) {
   db.set(['foo', 11], 'width', 20)
 
 })
+
+test('subscribe reducers', function(t) {
+  t.plan(3)
+
+  var db = indexer()
+
+  var totalWidth = db.reducer('totalWidth', function (values) {
+    var sum = 0
+    for (var i = 0; i < values.length; i++) {
+      sum += values[i]
+    }
+    return sum
+  })
+
+  var foo = db.subscribe('foo')
+
+  var count = 0
+  foo.on('data', function(items) {
+    count++
+    if (count === 1) {
+      t.deepEqual(items, [
+        {k: 'foo', v: {totalWidth: 10}}
+      ])
+    }
+    else if (count === 2) {
+      t.deepEqual(items, [
+        {k: 'foo', v: {totalWidth: 30}}
+      ])
+    }
+    else if (count === 3) {
+      t.deepEqual(items, [
+        {k: 'foo', v: {totalWidth: 26}}
+      ])
+    }
+    else {
+      t.fail()
+    }
+  })
+
+  totalWidth.set('foo', 1, 10)
+  totalWidth.set('bar', 2, 5)
+  totalWidth.set('bar', 3, 7)
+  totalWidth.set('foo', 4, 20)
+  totalWidth.set('foo', 1, 6)
+
+  foo.close()
+  totalWidth.set('foo', 1, 8)
+
+})
