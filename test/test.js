@@ -161,3 +161,92 @@ test('reduce', function(t) {
   })
 
 })
+
+test('subscribe', function(t) {
+  t.plan(7)
+
+  var db = indexer()
+
+  db.set(['foo', 11], 'width', 1)
+  db.set(['bar', 12], 'width', 2)
+
+  var foo = db.subscribe(['foo'], ['foo', '\u9999'])
+  var all = db.subscribe()
+  var bar = db.subscribe(['bar'], ['baz'])
+
+  var foo_ = 0
+  foo.on('data', function(items) {
+    foo_++
+    if (foo_ === 1) {
+      t.deepEqual(items, [
+        {k: ['foo', 11], v: {width: 2}}
+      ])
+    }
+    else if (foo_ === 2) {
+      t.deepEqual(items, [
+        {k: ['foo', 12], v: {height: 2}}
+      ])
+    }
+    else {
+      t.fail()
+    }
+  })
+
+  var all_ = 0
+  all.on('data', function(items) {
+    all_++
+    if (all_ === 1) {
+      t.deepEqual(items, [
+        {k: ['bat', 10], v: {width: 10}}
+      ])
+    }
+    else if (all_ === 2) {
+      t.deepEqual(items, [
+        {k: ['bar', 12], v: {width: 2, height: 12}}
+      ])
+    }
+    else if (all_ === 3) {
+      t.deepEqual(items, [
+        {k: ['foo', 11], v: {width: 2}}
+      ])
+    }
+    else {
+      t.fail()
+    }
+  })
+
+  var bar_ = 0
+  bar.on('data', function(items) {
+    bar_++
+    if (bar_ === 1) {
+      t.deepEqual(items, [
+        {k: ['bat', 10], v: {width: 10}}
+      ])
+    }
+    else if (bar_ === 2) {
+      t.deepEqual(items, [
+        {k: ['bar', 12], v: {width: 2, height: 12}}
+      ])
+    }
+    else {
+      t.fail()
+    }
+  })
+
+  db.set(['bat', 10], 'width', 10)
+  db.set(['bar', 12], 'height', 12)
+  db.merge(['foo', 11], {width: 2})
+
+  all.close()
+
+  db.set(['fob', 10], 'width', 10)
+  db.set(['foo', 12], 'height', 2)
+
+  db.set(['foo', 11], 'width', 2)
+
+  foo.close()
+  bar.close()
+
+  db.set(['foo', 11], 'width', 20)
+
+})

@@ -1,7 +1,8 @@
 var Tree = require('btreejs').create()
 var bytewise = require('bytewise')
 var assert = require('assert')
-
+var Stream = require('stream').Stream
+var inherits = require('util').inherits
 
 
 function Data(key) {
@@ -30,8 +31,21 @@ Data.prototype.processReducers = function() {
   this.reducers_to_run_ = []
 }
 
+function Subscription(start, end) {
+  Stream.call(this)
+  this.start = bytewise.encode(start).toString('binary')
+  this.end = bytewise.encode(end).toString('binary')
+}
+inherits(Subscription, Stream)
+
+Subscription.prototype.close = function() {
+  this.emit('end')
+  this.emit('close')
+}
+
 function Indexer() {
   this.tree = new Tree()
+  this.listeners_ = []
 }
 
 Indexer.prototype.set = function (key, property, value) {
@@ -45,7 +59,10 @@ Indexer.prototype.set = function (key, property, value) {
     current = new Data(key)
     this.tree.put(enckey, current)
   }
-  current.data[property] = value
+  if (current.data[property] !== value) {
+    current.data[property] = value
+    this.dispatch_(key, current.data)
+  }
 }
 
 Indexer.prototype.merge = function (key, object) {
@@ -59,8 +76,15 @@ Indexer.prototype.merge = function (key, object) {
     current = new Data(key)
     this.tree.put(enckey, current)
   }
+  var changed = false
   for (var i in object) {
-    current.data[i] = object[i]
+    if (current.data[i] !== object[i]) {
+      current.data[i] = object[i]
+      changed = true
+    }
+  }
+  if (changed) {
+    this.dispatch_(key, current.data)
   }
 }
 
@@ -90,7 +114,35 @@ Indexer.prototype.range = function (start, end) {
 }
 
 Indexer.prototype.subscribe = function (start, end) {
+  if (!start) {
+    start = ''
+  }
+  if (end === undefined) {
+    if (start === '') {
+      end = ['\u9999']
+    }
+    else {
+      end = start
+    }
+  }
+  var s = new Subscription(start, end)
+  this.listeners_.push(s)
+  var self = this
+  s.once('close', function() {
+    self.listeners_.splice(self.listeners_.indexOf(s), 1)
+  })
+  return s
+}
 
+Indexer.prototype.dispatch_ = function (k, v) {
+  var keyenc = bytewise.encode(k).toString('binary')
+  // r-tree?
+  for (var i = 0; i < this.listeners_.length; i++) {
+    var s = this.listeners_[i]
+    if (s.start <= keyenc && s.end >= keyenc) {
+      s.emit('data', [{k: k, v: v}])
+    }
+  }
 }
 
 Indexer.prototype.reducer = function (property, func) {
@@ -109,7 +161,7 @@ function Reducer(indexer, property, func) {
 }
 
 Reducer.prototype.set = function (key, id, value) {
-  var rkey;
+  var rkey
   if (Array.isArray(key)) {
     rkey = key.concat(id)
   }
