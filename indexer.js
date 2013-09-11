@@ -31,10 +31,14 @@ Data.prototype.processReducers = function() {
   this.reducers_to_run_ = []
 }
 
-function Subscription(start, end) {
+function Subscription(indexer, start, end) {
   Stream.call(this)
   this.start = bytewise.encode(start).toString('binary')
   this.end = bytewise.encode(end).toString('binary')
+  this.throttle = indexer.throttle || 0
+  this.queue = []
+  this.indexer = indexer
+  this.tm = 0
 }
 inherits(Subscription, Stream)
 
@@ -43,8 +47,33 @@ Subscription.prototype.close = function() {
   this.emit('close')
 }
 
-function Indexer() {
+Subscription.prototype.invalidate_ = function(k, v) {
+  if (!this.throttle) {
+    return this.emit('data', [{k: k, v: v.getData()}])
+  }
+  k = bytewise.encode(k)
+  if (-1 === this.queue.indexOf(k)) {
+    this.queue.push(k)
+  }
+  if (!this.tm) {
+    var self = this
+    // todo: remove closure
+    this.tm = setTimeout(function() {
+      var out = []
+      for (var i = 0; i < self.queue.length; i++) {
+        out.push({k: bytewise.decode(self.queue[i]), v: self.indexer.tree.get(self.queue[i]).getData()})
+      }
+      self.emit('data', out)
+      self.queue.length = 0
+      self.tm = 0
+    }, this.throttle)
+  }
+}
+
+function Indexer(opt) {
+  opt = opt || {}
   this.tree = new Tree()
+  this.throttle = opt.throttle || 0
   this.listeners_ = []
 }
 
@@ -125,7 +154,7 @@ Indexer.prototype.subscribe = function (start, end) {
       end = start
     }
   }
-  var s = new Subscription(start, end)
+  var s = new Subscription(this, start, end)
   this.listeners_.push(s)
   var self = this
   s.once('close', function() {
@@ -140,7 +169,7 @@ Indexer.prototype.dispatch_ = function (k, v) {
   for (var i = 0; i < this.listeners_.length; i++) {
     var s = this.listeners_[i]
     if (s.start <= keyenc && s.end >= keyenc) {
-      s.emit('data', [{k: k, v: v.getData()}])
+      s.invalidate_(k, v)
     }
   }
 }

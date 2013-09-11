@@ -3,7 +3,7 @@ WIP
 ```
 var indexer = require('events-indexer')
 
-var db = indexer()
+var db = indexer({throttle: 100})
 
 db.set(key, property, value)
 db.merge(key, object)

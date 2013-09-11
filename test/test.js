@@ -304,3 +304,54 @@ test('subscribe reducers', function(t) {
   totalWidth.set('foo', 1, 8)
 
 })
+
+test("throttled subscribe", function(t) {
+  t.plan(2)
+
+  var db = indexer({throttle: 100})
+
+  db.set(['foo', 11], 'width', 1)
+  db.set(['bar', 12], 'width', 2)
+
+  var foo = db.subscribe(['foo'], ['foo', '\u9999'])
+
+  var foo_ = 0
+  foo.on('data', function(items) {
+    foo_++
+    if (foo_ === 1) {
+      t.deepEqual(items, [
+        {k: ['foo', 11], v: {width: 2, height: 10}},
+        {k: ['foo', 12], v: {width: 10}}
+      ])
+    }
+    else if (foo_ === 2) {
+      t.deepEqual(items, [
+        {k: ['foo', 12], v: {width: 15}}
+      ])
+    }
+    else {
+      t.fail()
+    }
+  })
+
+  db.set(['bat', 10], 'width', 10)
+  db.merge(['foo', 11], {width: 2, height: 10})
+
+  setTimeout(function() {
+    db.merge(['foo', 12], {width: 10})
+  }, 10)
+
+  setTimeout(function() {
+    db.set(['foo', 12], 'width', 15)
+  }, 140)
+
+  setTimeout(function() {
+    foo.close()
+  }, 150)
+
+  setTimeout(function() {
+    db.merge(['foo', 12], {width: 10})
+  }, 300)
+
+
+})
