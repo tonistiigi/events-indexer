@@ -131,11 +131,16 @@ test('range arrays', function(t) {
 
 
 test('reduce', function(t) {
-  t.plan(2)
+  t.plan(4)
 
   var db = indexer()
 
+  var call_count = 0
   var avgwidth = db.reducer('avgwidth', function (values) {
+    call_count++
+    if (call_count === 1 || call_count === 2) t.pass()
+    else t.fail()
+
     var sum = 0
     for (var i = 0; i < values.length; i++) {
       sum += values[i]
