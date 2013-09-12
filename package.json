@@ -11,9 +11,11 @@
     "bytewise": "~0.6.0"
   },
   "devDependencies": {
-    "tape": "~1.1.0"
+    "tape": "~1.1.0",
+    "istanbul": "~0.1.43"
   },
   "scripts": {
-    "test": "node test/test"
+    "test": "node test/test",
+    "test-coverage": "./node_modules/.bin/istanbul cover test/test.js && ./node_modules/.bin/istanbul check-coverage --statements 100 --branches 100 --functions 100 --lines 100"
   }
 }
