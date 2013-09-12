@@ -1,9 +1,9 @@
 {
-  "name": "event-indexer",
+  "name": "events-indexer",
   "version": "0.0.0",
   "description": "",
   "main": "indexer.js",
-  "repository": "",
+  "repository": "git://github.com/tonistiigi/events-indexer.git",
   "author": "Tõnis Tiigi <tonistiigi@gmail.com>",
   "license": "MIT",
   "dependencies": {
