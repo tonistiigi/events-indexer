@@ -266,6 +266,7 @@ test('subscribe', function(t) {
 
   db.set(['fob', 10], 'width', 10)
   db.set(['foo', 12], 'height', 2)
+  db.set(['fob', 10], {width: 10})
 
   db.set(['foo', 11], 'width', 2)
 
@@ -289,24 +290,24 @@ test('subscribe reducers', function(t) {
     return sum
   })
 
-  var foo = db.subscribe('foo')
+  var foo = db.subscribe(['foo'])
 
   var count = 0
   foo.on('data', function(items) {
     count++
     if (count === 1) {
       t.deepEqual(items, [
-        {k: 'foo', v: {totalWidth: 10}}
+        {k: ['foo'], v: {totalWidth: 10}}
       ])
     }
     else if (count === 2) {
       t.deepEqual(items, [
-        {k: 'foo', v: {totalWidth: 30}}
+        {k: ['foo'], v: {totalWidth: 30}}
       ])
     }
     else if (count === 3) {
       t.deepEqual(items, [
-        {k: 'foo', v: {totalWidth: 26}}
+        {k: ['foo'], v: {totalWidth: 26}}
       ])
     }
     else {
@@ -314,14 +315,14 @@ test('subscribe reducers', function(t) {
     }
   })
 
-  totalWidth.set('foo', 1, 10)
-  totalWidth.set('bar', 2, 5)
-  totalWidth.set('bar', 3, 7)
-  totalWidth.set('foo', 4, 20)
-  totalWidth.set('foo', 1, 6)
+  totalWidth.set(['foo'], 1, 10)
+  totalWidth.set(['bar'], 2, 5)
+  totalWidth.set(['bar'], 3, 7)
+  totalWidth.set(['foo'], 4, 20)
+  totalWidth.set(['foo'], 1, 6)
 
   foo.close()
-  totalWidth.set('foo', 1, 8)
+  totalWidth.set(['foo'], 1, 8)
 
 })
 
@@ -355,7 +356,8 @@ test("throttled subscribe", function(t) {
   })
 
   db.set(['bat', 10], 'width', 10)
-  db.set(['foo', 11], {width: 2, height: 10})
+  db.set(['foo', 11], {width: 2})
+  db.set(['foo', 11], {height: 10})
 
   setTimeout(function() {
     db.set(['foo', 12], {width: 10})

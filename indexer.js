@@ -51,7 +51,8 @@ Subscription.prototype.invalidate_ = function(k, v) {
   if (!this.throttle) {
     return this.emit('data', [{k: k, v: v.getData()}])
   }
-  k = bytewise.encode(k)
+  // todo: redo with tree, to remove buffer creation and not mix up order
+  k = bytewise.encode(k).toString('binary')
   if (-1 === this.queue.indexOf(k)) {
     this.queue.push(k)
   }
@@ -61,7 +62,11 @@ Subscription.prototype.invalidate_ = function(k, v) {
     this.tm = setTimeout(function() {
       var out = []
       for (var i = 0; i < self.queue.length; i++) {
-        out.push({k: bytewise.decode(self.queue[i]), v: self.indexer.tree.get(self.queue[i]).getData()})
+        var b = new Buffer(self.queue[i], 'binary')
+        out.push({
+          k: bytewise.decode(b),
+          v: self.indexer.tree.get(b).getData()
+          })
       }
       self.emit('data', out)
       self.queue.length = 0
@@ -234,10 +239,11 @@ Reducer.prototype.run = function(key) {
 
   var keyenc = bytewise.encode(key)
   var current = this.indexer.tree.get(keyenc)
-  if (current === undefined) {
-    current = new Data
-    this.indexer.tree.put(keyenc, current)
-  }
+  // add this back when with del() support
+  // if (current === undefined) {
+  //   current = new Data
+  //   this.indexer.tree.put(keyenc, current)
+  // }
   current.data[this.property] = this.func(values)
 }
 
