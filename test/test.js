@@ -51,7 +51,7 @@ test('get/set arrays', function(t) {
 })
 
 test('invalid arguments', function(t) {
-  t.plan(3)
+  t.plan(9)
 
   var db = indexer()
 
@@ -67,6 +67,29 @@ test('invalid arguments', function(t) {
     db.set('foo', NaN, 'bar')
   })
 
+  t.throws(function() {
+    db.getRange(NaN)
+  })
+
+  t.throws(function() {
+    db.getRange('foo', null)
+  })
+
+  t.throws(function() {
+    db.subscribe(NaN)
+  })
+
+  t.throws(function() {
+    db.subscribe('foo', null)
+  })
+
+  t.throws(function() {
+    db.createReducedField(10, function() {})
+  })
+
+  t.throws(function() {
+    db.createReducedField('foo', 'bar')
+  })
 
 })
 

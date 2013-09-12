@@ -113,11 +113,15 @@ Indexer.prototype.set = function (key, property, value) {
 
 Indexer.prototype.get = function (key) {
   assert(key, key + ' is not a valid key')
+
   var data = this.tree.get(bytewise.encode(key))
   return data && data.getData()
 }
 
 Indexer.prototype.getRange = function (start, end) {
+  assert.ok(start || start === undefined)
+  assert.ok(end || end === undefined)
+
   if (!start) {
     start = ''
   }
@@ -137,6 +141,9 @@ Indexer.prototype.getRange = function (start, end) {
 }
 
 Indexer.prototype.subscribe = function (start, end) {
+  assert.ok(start || start === undefined)
+  assert.ok(end || end === undefined)
+
   if (!start) {
     start = ''
   }
@@ -169,6 +176,9 @@ Indexer.prototype.dispatch_ = function (k, v) {
 }
 
 Indexer.prototype.createReducedField = function (property, func) {
+  assert.ok(typeof property === 'string')
+  assert.ok(typeof func === 'function')
+
   return new Reducer(this, property, func)
 }
 
