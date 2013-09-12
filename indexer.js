@@ -197,15 +197,8 @@ Reducer.prototype.set = function (key, id, value) {
   else {
     rkey = [key, id]
   }
-  // don't like this. this should be handled by put. also need uncompiled version.
-  var rkeyenc = bytewise.encode(rkey)
-  var old = this.tree.root.search(rkeyenc)
-  if (old.leaf) {
-    old.leaf.value = value
-  }
-  else {
-    this.tree.put(rkeyenc, value)
-  }
+
+  this.tree.put(bytewise.encode(rkey), value)
 
   var keyenc = bytewise.encode(key)
   var current = this.indexer.tree.get(keyenc)

@@ -7,7 +7,7 @@
   "author": "Tõnis Tiigi <tonistiigi@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "btreejs": "~0.2.1",
+    "btreejs": "~0.3.0",
     "bytewise": "~0.6.0"
   },
   "devDependencies": {
