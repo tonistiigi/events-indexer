@@ -20,7 +20,7 @@ test('get/set strings', function(t) {
   t.deepEqual(db.get('bar'), {width: 4})
   t.equal(db.get('bar'), bar)
 
-  db.merge('foo', {width: 5, size: 6})
+  db.set('foo', {width: 5, size: 6})
 
   t.deepEqual(db.get('foo'), {width: 5, size: 6, height: 3})
   t.equal(db.get('nosuchkey'), undefined)
@@ -51,7 +51,7 @@ test('get/set arrays', function(t) {
 })
 
 test('invalid arguments', function(t) {
-  t.plan(4)
+  t.plan(3)
 
   var db = indexer()
 
@@ -67,9 +67,6 @@ test('invalid arguments', function(t) {
     db.set('foo', NaN, 'bar')
   })
 
-  t.throws(function() {
-    db.merge('foo', 'bar', 10)
-  })
 
 })
 
@@ -83,22 +80,22 @@ test('range strings', function(t) {
   db.set('bar', 'width', 2)
   db.set('fao', 'width', 3)
 
-  t.deepEqual(db.range(), [
+  t.deepEqual(db.getRange(), [
     {k: 'bar', v: {width: 2}},
     {k: 'fao', v: {width: 3}},
     {k: 'foo', v: {width: 1}},
   ])
 
-  t.deepEqual(db.range('fao'), [
+  t.deepEqual(db.getRange('fao'), [
     {k: 'fao', v: {width: 3}}
   ])
 
-  t.deepEqual(db.range('f', 'g'), [
+  t.deepEqual(db.getRange('f', 'g'), [
     {k: 'fao', v: {width: 3}},
     {k: 'foo', v: {width: 1}},
   ])
 
-  t.deepEqual(db.range('g', 'z'), [])
+  t.deepEqual(db.getRange('g', 'z'), [])
 
 })
 
@@ -113,19 +110,19 @@ test('range arrays', function(t) {
   db.set(['fao', 13], 'width', 3)
   db.set(['foo', 10], 'width', 4)
 
-  t.deepEqual(db.range(), [
+  t.deepEqual(db.getRange(), [
     {k: ['bar', 12], v: {width: 2}},
     {k: ['fao', 13], v: {width: 3}},
     {k: ['foo', 10], v: {width: 4}},
     {k: ['foo', 11], v: {width: 1}},
   ])
 
-  t.deepEqual(db.range(['foo'], ['foo', '\u9999']), [
+  t.deepEqual(db.getRange(['foo'], ['foo', '\u9999']), [
     {k: ['foo', 10], v: {width: 4}},
     {k: ['foo', 11], v: {width: 1}},
   ])
 
-  t.deepEqual(db.range(['foo', 'a'], ['\u9999']), [])
+  t.deepEqual(db.getRange(['foo', 'a'], ['\u9999']), [])
 
 })
 
@@ -136,7 +133,7 @@ test('reduce', function(t) {
   var db = indexer()
 
   var call_count = 0
-  var avgwidth = db.reducer('avgwidth', function (values) {
+  var avgwidth = db.createReducedField('avgwidth', function (values) {
     call_count++
     if (call_count === 1 || call_count === 2) t.pass()
     else t.fail()
@@ -240,7 +237,7 @@ test('subscribe', function(t) {
 
   db.set(['bat', 10], 'width', 10)
   db.set(['bar', 12], 'height', 12)
-  db.merge(['foo', 11], {width: 2})
+  db.set(['foo', 11], {width: 2})
 
   all.close()
 
@@ -261,7 +258,7 @@ test('subscribe reducers', function(t) {
 
   var db = indexer()
 
-  var totalWidth = db.reducer('totalWidth', function (values) {
+  var totalWidth = db.createReducedField('totalWidth', function (values) {
     var sum = 0
     for (var i = 0; i < values.length; i++) {
       sum += values[i]
@@ -335,10 +332,10 @@ test("throttled subscribe", function(t) {
   })
 
   db.set(['bat', 10], 'width', 10)
-  db.merge(['foo', 11], {width: 2, height: 10})
+  db.set(['foo', 11], {width: 2, height: 10})
 
   setTimeout(function() {
-    db.merge(['foo', 12], {width: 10})
+    db.set(['foo', 12], {width: 10})
   }, 10)
 
   setTimeout(function() {
@@ -350,7 +347,7 @@ test("throttled subscribe", function(t) {
   }, 150)
 
   setTimeout(function() {
-    db.merge(['foo', 12], {width: 10})
+    db.set(['foo', 12], {width: 10})
   }, 300)
 
 

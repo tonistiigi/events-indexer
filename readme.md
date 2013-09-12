@@ -3,12 +3,12 @@ WIP
 ```
 var indexer = require('events-indexer')
 
-var db = indexer({throttle: 100})
+var db = indexer({throttle: 100}) // throttle queues up subscribe events(ms)
 
 db.set(key, property, value)
-db.merge(key, object)
+db.set(key, object) // merges values
 db.get(key)
-db.range(start, end)
+db.getRange(start, opt_end) // if no end then use start*
 
 // listen for changes
 var reader = db.subscribe(start, opt_end)
@@ -17,7 +17,7 @@ reader.close()
 
 // reduced values
 
-var avgWind = db.reducer('avgWind', function (values) {
+var avgWind = db.createReducedField('avgWind', function (values) {
   var sum = 0;
   for (var i = 0; i < values.length; i++) {
     sum += i
@@ -25,5 +25,5 @@ var avgWind = db.reducer('avgWind', function (values) {
   return sum / values.length
 })
 
-avgWind.set(key, uid, 10)
+avgWind.set(key, uid, 10) // uid defines order + overwrite cases
 ````

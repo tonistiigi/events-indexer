@@ -79,7 +79,7 @@ function Indexer(opt) {
 
 Indexer.prototype.set = function (key, property, value) {
   assert(key, key + ' is not a valid key')
-  assert.equal(typeof property, 'string', 'property needs to be a string')
+  assert.ok(property, 'invalid property')
 
   var enckey = bytewise.encode(key)
   var current = this.tree.get(enckey)
@@ -88,33 +88,27 @@ Indexer.prototype.set = function (key, property, value) {
     current = new Data(key)
     this.tree.put(enckey, current)
   }
-  if (current.data[property] !== value) {
-    current.data[property] = value
-    this.dispatch_(key, current)
-  }
-}
 
-Indexer.prototype.merge = function (key, object) {
-  assert(key, key + ' is not a valid key')
-  assert.equal(typeof object, 'object')
-
-  var enckey = bytewise.encode(key)
-  var current = this.tree.get(enckey)
-
-  if (current === undefined) {
-    current = new Data(key)
-    this.tree.put(enckey, current)
-  }
-  var changed = false
-  for (var i in object) {
-    if (current.data[i] !== object[i]) {
-      current.data[i] = object[i]
-      changed = true
+  if (typeof property === 'string') {
+    if (current.data[property] !== value) {
+      current.data[property] = value
+      this.dispatch_(key, current)
     }
   }
-  if (changed) {
-    this.dispatch_(key, current)
+  else {
+    var changed = false
+    var object = property
+    for (var i in object) {
+      if (current.data[i] !== object[i]) {
+        current.data[i] = object[i]
+        changed = true
+      }
+    }
+    if (changed) {
+      this.dispatch_(key, current)
+    }
   }
+
 }
 
 Indexer.prototype.get = function (key) {
@@ -123,7 +117,7 @@ Indexer.prototype.get = function (key) {
   return data && data.getData()
 }
 
-Indexer.prototype.range = function (start, end) {
+Indexer.prototype.getRange = function (start, end) {
   if (!start) {
     start = ''
   }
@@ -174,7 +168,7 @@ Indexer.prototype.dispatch_ = function (k, v) {
   }
 }
 
-Indexer.prototype.reducer = function (property, func) {
+Indexer.prototype.createReducedField = function (property, func) {
   return new Reducer(this, property, func)
 }
 
