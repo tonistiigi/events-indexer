@@ -36,9 +36,10 @@ function Subscription(indexer, start, end) {
   this.start = bytewise.encode(start).toString('binary')
   this.end = bytewise.encode(end).toString('binary')
   this.throttle = indexer.throttle || 0
-  this.queue = []
+  this.queue = new Tree
   this.indexer = indexer
   this.tm = 0
+  this.processQueue_ = Subscription.prototype.processQueue_.bind(this)
 }
 inherits(Subscription, Stream)
 
@@ -47,31 +48,25 @@ Subscription.prototype.close = function() {
   this.emit('close')
 }
 
+Subscription.prototype.processQueue_ = function() {
+  var result = []
+  this.queue.walk(function(key, v) {
+    result.push({k: bytewise.decode(key), v: v.getData()})
+  })
+  this.emit('data', result)
+  this.queue = new Tree
+  this.tm = 0
+}
+
 Subscription.prototype.invalidate_ = function(k, v) {
   if (!this.throttle) {
     return this.emit('data', [{k: k, v: v.getData()}])
   }
-  // todo: redo with tree, to remove buffer creation and not mix up order
-  k = bytewise.encode(k).toString('binary')
-  if (-1 === this.queue.indexOf(k)) {
-    this.queue.push(k)
-  }
+
+  this.queue.put(bytewise.encode(k), v)
+
   if (!this.tm) {
-    var self = this
-    // todo: remove closure
-    this.tm = setTimeout(function() {
-      var out = []
-      for (var i = 0; i < self.queue.length; i++) {
-        var b = new Buffer(self.queue[i], 'binary')
-        out.push({
-          k: bytewise.decode(b),
-          v: self.indexer.tree.get(b).getData()
-          })
-      }
-      self.emit('data', out)
-      self.queue.length = 0
-      self.tm = 0
-    }, this.throttle)
+    this.tm = setTimeout(this.processQueue_, this.throttle)
   }
 }
 
