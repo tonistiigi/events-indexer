@@ -129,8 +129,11 @@ Indexer.prototype.getRange = function (start, end) {
     if (start === '') {
       end = ['\u9999']
     }
+    else if (Array.isArray(start)) {
+      end = start.concat('\u9999')
+    }
     else {
-      end = start
+      end = start + '\u9999'
     }
   }
   var result = []
@@ -151,8 +154,11 @@ Indexer.prototype.subscribe = function (start, end) {
     if (start === '') {
       end = ['\u9999']
     }
+    else if (Array.isArray(start)) {
+      end = start.concat('\u9999')
+    }
     else {
-      end = start
+      end = start + '\u9999'
     }
   }
   var s = new Subscription(this, start, end)

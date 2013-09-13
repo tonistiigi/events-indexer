@@ -375,5 +375,47 @@ test("throttled subscribe", function(t) {
     db.set(['foo', 12], {width: 10})
   }, 300)
 
+})
+
+test("range query without end argument", function(t) {
+  t.plan(3)
+
+  var db = indexer()
+
+  db.set(['foo', 1], {a: 1})
+  db.set(['foo', 2], {a: 2})
+  db.set(['foo', 3], {a: 3})
+
+  t.deepEqual(db.getRange(['foo']), [
+    { k: [ 'foo', 1 ], v: { a: 1 } },
+    { k: [ 'foo', 2 ], v: { a: 2 } },
+    { k: [ 'foo', 3 ], v: { a: 3 } }
+  ])
+
+  var foostar = db.subscribe('foo')
+
+  var count = 0
+  foostar.on('data', function(items) {
+    count++
+    if (count === 1) {
+      t.deepEqual(items, [
+        { k: 'foobar', v: {b: 1} }
+      ])
+    }
+    else if (count === 2) {
+      t.deepEqual(items, [
+        { k: 'foo', v: {b: 2} }
+      ])
+    }
+    else {
+      t.fail()
+    }
+  })
+
+  db.set('bar', {b: 3})
+  db.set('foobar', {b: 1})
+  db.set('foo', {b: 2})
+  db.set('fozbar', {b: 4})
+
 
 })
