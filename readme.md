@@ -1,3 +1,5 @@
+[![Build Status](https://secure.travis-ci.org/tonistiigi/events-indexer.png)](http://travis-ci.org/tonistiigi/events-indexer)
+
 WIP
 
 ```
