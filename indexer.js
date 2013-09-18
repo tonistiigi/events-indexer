@@ -40,12 +40,16 @@ function Subscription(indexer, start, end) {
   this.indexer = indexer
   this.tm = 0
   this.processQueue_ = Subscription.prototype.processQueue_.bind(this)
+
+  this.indexer.log({start: this.start, end: this.end}, 'subscribe')
 }
 inherits(Subscription, Stream)
 
 Subscription.prototype.close = function() {
   this.emit('end')
   this.emit('close')
+
+  this.indexer.log({start: this.start, end: this.end}, 'unsubscribe')
 }
 
 Subscription.prototype.processQueue_ = function() {
@@ -75,6 +79,7 @@ function Indexer(opt) {
   this.tree = new Tree()
   this.throttle = opt.throttle || 0
   this.listeners_ = []
+  this.log = opt.log  || function() {}
 }
 
 Indexer.prototype.set = function (key, property, value) {
