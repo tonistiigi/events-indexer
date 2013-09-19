@@ -133,11 +133,10 @@ test('range arrays', function(t) {
   db.set(['fao', 13], 'width', 3)
   db.set(['foo', 10], 'width', 4)
 
-  t.deepEqual(db.getRange(), [
-    {k: ['bar', 12], v: {width: 2}},
-    {k: ['fao', 13], v: {width: 3}},
-    {k: ['foo', 10], v: {width: 4}},
+  t.deepEqual(db.getRange(undefined, undefined, {order: 'desc', limit: 3}), [
     {k: ['foo', 11], v: {width: 1}},
+    {k: ['foo', 10], v: {width: 4}},
+    {k: ['fao', 13], v: {width: 3}}
   ])
 
   t.deepEqual(db.getRange(['foo'], ['foo', '\u9999']), [

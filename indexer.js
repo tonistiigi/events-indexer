@@ -123,9 +123,13 @@ Indexer.prototype.get = function (key) {
   return data && data.getData()
 }
 
-Indexer.prototype.getRange = function (start, end) {
+Indexer.prototype.getRange = function (start, end, options) {
   assert.ok(start || start === undefined)
   assert.ok(end || end === undefined)
+
+  options = options || {}
+  var order = options.order || 'asc'
+  var limit = options.limit || -1
 
   if (!start) {
     start = ''
@@ -142,7 +146,10 @@ Indexer.prototype.getRange = function (start, end) {
     }
   }
   var result = []
-  this.tree.walk(bytewise.encode(start), bytewise.encode(end), function(key, v) {
+  var i = 0
+  var walk = order === 'desc' ? 'walkDesc' : 'walkAsc'
+  this.tree[walk](bytewise.encode(start), bytewise.encode(end), function(key, v) {
+    if (limit !== -1 && ++i > limit) return true
     result.push({k: bytewise.decode(key), v: v.getData()})
   })
   return result
