@@ -8,7 +8,7 @@
   "license": "MIT",
   "dependencies": {
     "btreejs": "~0.3.0",
-    "bytewise": "~0.6.0"
+    "bytewise": "git://github.com/deanlandolt/bytewise.git"
   },
   "devDependencies": {
     "tape": "~1.1.0",
