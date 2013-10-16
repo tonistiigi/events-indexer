@@ -29,3 +29,37 @@ var avgWind = db.createReducedField('avgWind', function (values) {
 
 avgWind.set(key, uid, 10) // uid defines order + overwrite cases
 ````
+
+var park = db.get(['fp', country, parkId])
+park.set({p: 100})
+park.set({wind: indexer.reduced(tid, 100) })
+
+db.has(key)
+db.del(key)
+
+var reader = db.subscribe(start, opt_end)
+reader.on('add', function() { })
+reader.on('update', function() { })
+reader.on('delete', function() { })
+reader.close()
+
+indexer.throttle(reader, .2).on('data', function(list) {
+})
+
+var park = db.define(['fp', ':country', ':parkId'])
+park.on('create', function(p, params) {
+})
+park.on('change', function(p) {
+})
+
+park.defineReduce('wind', function(values) {
+  return sum(values)
+})
+
+park.defineMap(function() {
+  if (this.wind > 100) return ['highwind', this.parkId]
+})
+park.defineMap(['fp_allparks', ':parkId'])
+
+
+
