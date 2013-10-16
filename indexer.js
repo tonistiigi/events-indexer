@@ -3,12 +3,31 @@ var bytewise = require('bytewise')
 var assert = require('assert')
 var Stream = require('stream').Stream
 var inherits = require('util').inherits
+var EventEmitter = require('events').EventEmitter
 
-
-function Data(key) {
+function Data(def, key, init) {
+  this.def_ = def
+  this.inTree_ = 0
   this.key_ = key
-  this.data = {}
+  this.data = init || {}
   this.reducers_to_run_ = []
+  this.def_.emit('create', this)
+}
+
+Data.prototype.set = function(data) {
+  assert.ok(data, 'invalid object')
+
+  var changed = false
+  for (var i in data) {
+    if (this.data[i] !== data[i]) {
+      this.data[i] = data[i]
+      changed = true
+    }
+  }
+  if (changed) {
+    this.def_.emit('change', this)
+  }
+  return this
 }
 
 Data.prototype.getData = function() {
@@ -29,6 +48,45 @@ Data.prototype.processReducers = function() {
     this.reducers_to_run_[i].run(this.key_)
   }
   this.reducers_to_run_ = []
+}
+Data.prototype.del = function() {
+  // todo
+  assert.ok(false)
+}
+
+
+function Definition(indexer, key) {
+  EventEmitter.call(this)
+  this.indexer = indexer
+  this.key = key
+}
+inherits(Definition, EventEmitter)
+
+Definition.prototype.match = function(key) {
+  if (key.length === this.key.length) {
+    for (var i = 0; i < key.length; i++) {
+      if (this.key[i][0] != ':' && this.key[i] !== key[i]) {
+        return false
+      }
+    }
+    return true
+  }
+  return false
+}
+
+Definition.prototype.getOrCreate = function(key) {
+  // todo: throw if no match
+  var params = {}
+  for (var i = 0; i < this.key.length; i++) {
+    if (this.key[i][0] == ':') {
+      params[this.key[i].substr(1)] = key[i]
+    }
+  }
+  var d = this.indexer.tree.get(bytewise.encode(key))
+  if (!d) {
+    d = new Data(this, key, params)
+  }
+  return d
 }
 
 function Subscription(indexer, start, end) {
@@ -79,9 +137,12 @@ function Indexer(opt) {
   this.tree = new Tree()
   this.throttle = opt.throttle || 0
   this.listeners_ = []
+  this.defs_ = []
+  this.default_ = new Definition(this, [])
   this.log = opt.log  || function() {}
 }
 
+/*
 Indexer.prototype.set = function (key, property, value) {
   assert(key, key + ' is not a valid key')
   assert.ok(property, 'invalid property')
@@ -114,13 +175,38 @@ Indexer.prototype.set = function (key, property, value) {
     }
   }
 
+}*/
+
+
+Indexer.prototype.define = function (key) {
+  var def = new Definition(this, key)
+  // todo: check collisions
+  this.defs_.push(def)
+  return def
 }
 
 Indexer.prototype.get = function (key) {
   assert(key, key + ' is not a valid key')
 
-  var data = this.tree.get(bytewise.encode(key))
-  return data && data.getData()
+  for (var i = 0; i < this.defs_.length; i++) {
+    if (this.defs_[i].match(key)) {
+      return this.defs_[i].getOrCreate(key)
+    }
+  }
+
+  return this.default_.getOrCreate(key)
+}
+
+
+Indexer.prototype.has = function(key) {
+  assert(key, key + ' is not a valid key')
+  return !!this.tree.get(bytewise.encode(key))
+}
+
+Indexer.prototype.del = function(key) {
+  if (this.has(key)) {
+    this.tree.get(bytewise.encode(key)).del()
+  }
 }
 
 Indexer.prototype.getRange = function (start, end, options) {
@@ -193,12 +279,14 @@ Indexer.prototype.dispatch_ = function (k, v) {
   }
 }
 
+/*
 Indexer.prototype.createReducedField = function (property, func) {
   assert.ok(typeof property === 'string')
   assert.ok(typeof func === 'function')
 
   return new Reducer(this, property, func)
 }
+*/
 
 function Reducer(indexer, property, func) {
   assert(indexer instanceof Indexer)
