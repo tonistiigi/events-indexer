@@ -186,7 +186,7 @@ test('reduce', function(t) {
 })
 
 test('subscribe', function(t) {
-  t.plan(7)
+  t.plan(14)
 
   var db = indexer()
 
@@ -198,17 +198,15 @@ test('subscribe', function(t) {
   var bar = db.subscribe(['bar'], ['baz'])
 
   var foo_ = 0
-  foo.on('data', function(items) {
+  foo.on('update', function(k, v) {
     foo_++
     if (foo_ === 1) {
-      t.deepEqual(items, [
-        {k: ['foo', 11], v: {width: 2}}
-      ])
+      t.deepEqual(k, ['foo', 11])
+      t.deepEqual(v, {width: 2})
     }
     else if (foo_ === 2) {
-      t.deepEqual(items, [
-        {k: ['foo', 12], v: {height: 2}}
-      ])
+      t.deepEqual(k, ['foo', 12])
+      t.deepEqual(v, {height: 2})
     }
     else {
       t.fail()
@@ -216,22 +214,19 @@ test('subscribe', function(t) {
   })
 
   var all_ = 0
-  all.on('data', function(items) {
+  all.on('update', function(k, v) {
     all_++
     if (all_ === 1) {
-      t.deepEqual(items, [
-        {k: ['bat', 10], v: {width: 10}}
-      ])
+      t.deepEqual(k, ['bat', 10])
+      t.deepEqual(v, {width: 10})
     }
     else if (all_ === 2) {
-      t.deepEqual(items, [
-        {k: ['bar', 12], v: {width: 2, height: 12}}
-      ])
+      t.deepEqual(k, ['bar', 12])
+      t.deepEqual(v, {width: 2, height: 12})
     }
     else if (all_ === 3) {
-      t.deepEqual(items, [
-        {k: ['foo', 11], v: {width: 2}}
-      ])
+      t.deepEqual(k, ['foo', 11])
+      t.deepEqual(v, {width: 2})
     }
     else {
       t.fail()
@@ -239,17 +234,15 @@ test('subscribe', function(t) {
   })
 
   var bar_ = 0
-  bar.on('data', function(items) {
+  bar.on('update', function(k, v) {
     bar_++
     if (bar_ === 1) {
-      t.deepEqual(items, [
-        {k: ['bat', 10], v: {width: 10}}
-      ])
+      t.deepEqual(k, ['bat', 10])
+      t.deepEqual(v, {width: 10})
     }
     else if (bar_ === 2) {
-      t.deepEqual(items, [
-        {k: ['bar', 12], v: {width: 2, height: 12}}
-      ])
+      t.deepEqual(k, ['bar', 12])
+      t.deepEqual(v, {width: 2, height: 12})
     }
     else {
       t.fail()
@@ -276,7 +269,7 @@ test('subscribe', function(t) {
 })
 
 test('subscribe reducers', function(t) {
-  t.plan(3)
+  t.plan(6)
 
   var db = indexer()
 
@@ -291,22 +284,19 @@ test('subscribe reducers', function(t) {
   var foo = db.subscribe(['foo'])
 
   var count = 0
-  foo.on('data', function(items) {
+  foo.on('update', function(k, v) {
     count++
     if (count === 1) {
-      t.deepEqual(items, [
-        {k: ['foo'], v: {totalWidth: 10}}
-      ])
+      t.deepEqual(k, ['foo'])
+      t.deepEqual(v, {totalWidth: 10})
     }
     else if (count === 2) {
-      t.deepEqual(items, [
-        {k: ['foo'], v: {totalWidth: 30}}
-      ])
+      t.deepEqual(k, ['foo'])
+      t.deepEqual(v, {totalWidth: 30})
     }
     else if (count === 3) {
-      t.deepEqual(items, [
-        {k: ['foo'], v: {totalWidth: 26}}
-      ])
+      t.deepEqual(k, ['foo'])
+      t.deepEqual(v, {totalWidth: 26})
     }
     else {
       t.fail()
@@ -323,29 +313,29 @@ test('subscribe reducers', function(t) {
   db.set(['foo'], {totalWidth: [1, 8]})
 
 })
-/*
+
 test("throttled subscribe", function(t) {
   t.plan(2)
 
-  var db = indexer({throttle: 100})
+  var db = indexer()
 
-  db.set(['foo', 11], 'width', 1)
-  db.set(['bar', 12], 'width', 2)
+  db.set(['foo', 11], {width: 1})
+  db.set(['foo', 12], {width: 2})
 
   var foo = db.subscribe(['foo'], ['foo', '\u9999'])
 
   var foo_ = 0
-  foo.on('data', function(items) {
+  foo.throttle(.1).on('data', function(items) {
     foo_++
     if (foo_ === 1) {
       t.deepEqual(items, [
-        {k: ['foo', 11], v: {width: 2, height: 10}},
-        {k: ['foo', 12], v: {width: 10}}
+        {t: 'u', k: ['foo', 11], v: {width: 2, height: 10}},
+        {t: 'u', k: ['foo', 12], v: {width: 10}}
       ])
     }
     else if (foo_ === 2) {
       t.deepEqual(items, [
-        {k: ['foo', 12], v: {width: 15}}
+        {t: 'u', k: ['foo', 12], v: {width: 15}}
       ])
     }
     else {
@@ -353,7 +343,7 @@ test("throttled subscribe", function(t) {
     }
   })
 
-  db.set(['bat', 10], 'width', 10)
+  db.set(['bat', 10], {width: 10})
   db.set(['foo', 11], {width: 2})
   db.set(['foo', 11], {height: 10})
 
@@ -362,7 +352,7 @@ test("throttled subscribe", function(t) {
   }, 10)
 
   setTimeout(function() {
-    db.set(['foo', 12], 'width', 15)
+    db.set(['foo', 12], {width: 15})
   }, 140)
 
   setTimeout(function() {
@@ -374,9 +364,9 @@ test("throttled subscribe", function(t) {
   }, 300)
 
 })
-*/
+
 test("range query without end argument", function(t) {
-  t.plan(3)
+  t.plan(5)
 
   var db = indexer()
 
@@ -393,17 +383,15 @@ test("range query without end argument", function(t) {
   var foostar = db.subscribe('foo')
 
   var count = 0
-  foostar.on('data', function(items) {
+  foostar.on('update', function(k, v) {
     count++
     if (count === 1) {
-      t.deepEqual(items, [
-        { k: 'foobar', v: {b: 1} }
-      ])
+      t.deepEqual(k, 'foobar')
+      t.deepEqual(v, {b: 1})
     }
     else if (count === 2) {
-      t.deepEqual(items, [
-        { k: 'foo', v: {b: 2} }
-      ])
+      t.deepEqual(k, 'foo')
+      t.deepEqual(v, {b: 2})
     }
     else {
       t.fail()

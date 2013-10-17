@@ -6,6 +6,14 @@ var inherits = require('util').inherits
 var EventEmitter = require('events').EventEmitter
 var deepEqual = require('deep-equal')
 
+
+function delayFunction(sec) {
+  return function(f) {
+    return setTimeout(f, sec * 1000)
+  }
+}
+
+
 function MapResult(key, data, link) {
   this.key = key
   this.data = data
@@ -192,18 +200,14 @@ Definition.prototype.reduce = function(property, func) {
 }
 
 function Subscription(indexer, start, end) {
-  Stream.call(this)
+  EventEmitter.call(this)
   this.start = bytewise.encode(start).toString('binary')
   this.end = bytewise.encode(end).toString('binary')
-  this.throttle = indexer.throttle || 0
-  this.queue = new Tree
   this.indexer = indexer
-  this.tm = 0
-  this.processQueue_ = Subscription.prototype.processQueue_.bind(this)
-
+  this.streams_ = []
   this.indexer.log({start: this.start, end: this.end}, 'subscribe')
 }
-inherits(Subscription, Stream)
+inherits(Subscription, EventEmitter)
 
 Subscription.prototype.close = function() {
   this.emit('end')
@@ -212,27 +216,60 @@ Subscription.prototype.close = function() {
   this.indexer.log({start: this.start, end: this.end}, 'unsubscribe')
 }
 
-Subscription.prototype.processQueue_ = function() {
+Subscription.prototype.invalidate_ = function(type, k, v) {
+  var bkey = Buffer(k, 'binary')
+  if (this.listeners(type).length) {
+    this.emit(type, bytewise.decode(bkey), v.getValue())
+  }
+  for (var i = 0; i < this.streams_.length; i++) {
+    this.streams_[i].dispatch_(type[0], bkey, v)
+  }
+}
+
+Subscription.prototype.throttle = function(delay) {
+  var stream = new SubscribeStream(delay ? delayFunction(delay) : process.nextTick)
+  this.streams_.push(stream)
+  return stream
+}
+
+function ValueWithType(type, v) {
+  this.type = type
+  this.v = v
+}
+
+function SubscribeStream(f) {
+  Stream.call(this)
+  this.f = f
+  this.fire_ = this.fire_.bind(this)
+  this.queue = new Tree
+  this.empty = true
+}
+inherits(SubscribeStream, Stream)
+
+SubscribeStream.prototype.dispatch_ = function(type, k, v) {
+  var current = this.queue.get(k)
+  if (!current) {
+    this.queue.put(k, new ValueWithType(type, v))
+  }
+  else {
+    if (current.type === 'a' && type === 'u') type = 'a'
+    current.type = type
+    current.v = v
+  }
+  if (this.empty) {
+    this.f(this.fire_)
+    this.empty = false
+  }
+}
+
+SubscribeStream.prototype.fire_ = function() {
   var result = []
   this.queue.walk(function(key, v) {
-    result.push({k: bytewise.decode(key), v: v.getData()})
+    result.push({t: v.type, k: bytewise.decode(key), v: v.type === 'd' ? undefined : v.v.getValue()})
   })
   this.emit('data', result)
   this.queue = new Tree
-  this.tm = 0
-}
-
-Subscription.prototype.invalidate_ = function(type, k, v) {
-  if (!this.throttle) {
-    if (type != 'update') return //todo:
-    return this.emit('data', [{k: bytewise.decode(Buffer(k, 'binary')), v: v.getValue()}])
-  }
-
-  this.queue.put(bytewise.encode(k), v)
-
-  if (!this.tm) {
-    this.tm = setTimeout(this.processQueue_, this.throttle)
-  }
+  this.empty = true
 }
 
 function Indexer(opt) {
