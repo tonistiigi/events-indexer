@@ -30,6 +30,8 @@ var avgWind = db.createReducedField('avgWind', function (values) {
 avgWind.set(key, uid, 10) // uid defines order + overwrite cases
 ````
 
+v2:
+```
 var park = db.get(['fp', country, parkId])
 park.set({p: 100})
 park.set({wind: indexer.reduced(tid, 100) })
@@ -67,6 +69,6 @@ park.map(function() {
   if (this.wind > 100) return ['highwind', this.parkId]
 }, ['name'])
 
-
+```
 
 

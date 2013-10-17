@@ -74,7 +74,12 @@ Data.prototype.set = function(data) {
 
   var changed = []
   for (var i in data) {
-    if (this.data[i] !== data[i]) {
+    if (this.def_.reduce_[i]) {
+      if (this.def_.reduce_[i].set(this.key_, data[i][0], data[i][1])) {
+        changed.push(i)
+      }
+    }
+    else if (this.data[i] !== data[i]) {
       this.data[i] = data[i]
       changed.push(i)
     }
@@ -179,8 +184,11 @@ Definition.prototype.map = function(key, fields) {
   this.map_.push(new MapDefinition(key, fields))
 }
 
-Definition.prototype.reduce = function(name, func) {
-  this.reduce_[name] = func
+Definition.prototype.reduce = function(property, func) {
+  assert.ok(typeof property === 'string')
+  assert.ok(typeof func === 'function')
+
+  this.reduce_[property] = new Reducer(this.indexer, property, func)
 }
 
 function Subscription(indexer, start, end) {
@@ -385,16 +393,21 @@ Reducer.prototype.set = function (key, id, value) {
     rkey = [key, id]
   }
 
-  this.tree.put(bytewise.encode(rkey), value)
+  rkey = bytewise.encode(rkey)
+
+  var current = this.tree.get(rkey)
+  if (current && deepEqual(value, current)) { // todo: is this logical?
+    return false
+  }
+  this.tree.put(rkey, value)
 
   var keyenc = bytewise.encode(key)
   var current = this.indexer.tree.get(keyenc)
   if (current === undefined) {
-    current = new Data(key)
-    this.indexer.tree.put(keyenc, current)
+    assert.ok(false, 'reducer run for missing object')
   }
   current.invalidateReducer(this)
-  this.indexer.dispatch_(key, current)
+  return true
 }
 
 Reducer.prototype.run = function(key) {

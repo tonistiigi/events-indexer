@@ -146,7 +146,7 @@ test('range arrays', function(t) {
   t.deepEqual(db.getRange(['foo', 'a'], ['\u9999']), [])
 
 })
-/*
+
 
 test('reduce', function(t) {
   t.plan(4)
@@ -154,7 +154,7 @@ test('reduce', function(t) {
   var db = indexer()
 
   var call_count = 0
-  var avgwidth = db.createReducedField('avgwidth', function (values) {
+  db.default_.reduce('avgwidth', function (values) {
     call_count++
     if (call_count === 1 || call_count === 2) t.pass()
     else t.fail()
@@ -166,25 +166,25 @@ test('reduce', function(t) {
     return values.length && sum / values.length
   })
 
-  avgwidth.set('foo', 1, 10)
-  avgwidth.set('bar', 2, 5)
-  avgwidth.set('bar', 3, 7)
-  avgwidth.set('foo', 4, 20)
-  avgwidth.set('foo', 5, 6)
+  db.set('foo', {avgwidth: [1, 10]})
+  db.set('bar', {avgwidth: [2, 5]})
+  db.set('bar', {avgwidth: [3, 7]})
+  db.set('foo', {avgwidth: [4, 20]})
+  db.set('foo', {avgwidth: [5, 6]})
 
-  db.set('foo', 'bar', 'baz')
+  db.set('foo', {bar: 'baz'})
 
-  t.deepEqual(db.get('foo'), {
+  t.deepEqual(db.getValue('foo'), {
     bar: 'baz',
     avgwidth: 12
   })
 
-  t.deepEqual(db.get('bar'), {
+  t.deepEqual(db.getValue('bar'), {
     avgwidth: 6
   })
 
 })
-*/
+
 test('subscribe', function(t) {
   t.plan(7)
 
@@ -274,13 +274,13 @@ test('subscribe', function(t) {
   db.set(['foo', 11], {width: 20})
 
 })
-/*
+
 test('subscribe reducers', function(t) {
   t.plan(3)
 
   var db = indexer()
 
-  var totalWidth = db.createReducedField('totalWidth', function (values) {
+  db.default_.reduce('totalWidth', function (values) {
     var sum = 0
     for (var i = 0; i < values.length; i++) {
       sum += values[i]
@@ -313,17 +313,17 @@ test('subscribe reducers', function(t) {
     }
   })
 
-  totalWidth.set(['foo'], 1, 10)
-  totalWidth.set(['bar'], 2, 5)
-  totalWidth.set(['bar'], 3, 7)
-  totalWidth.set(['foo'], 4, 20)
-  totalWidth.set(['foo'], 1, 6)
+  db.set(['foo'], {totalWidth: [1, 10]})
+  db.set(['bar'], {totalWidth: [2, 5]})
+  db.set(['bar'], {totalWidth: [3, 7]})
+  db.set(['foo'], {totalWidth: [4, 20]})
+  db.set(['foo'], {totalWidth: [1, 6]})
 
   foo.close()
-  totalWidth.set(['foo'], 1, 8)
+  db.set(['foo'], {totalWidth: [1, 8]})
 
 })
-
+/*
 test("throttled subscribe", function(t) {
   t.plan(2)
 
