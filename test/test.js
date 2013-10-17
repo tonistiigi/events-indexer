@@ -405,3 +405,58 @@ test("range query without end argument", function(t) {
 
 
 })
+
+test("map definitions", function(t) {
+  t.plan(6)
+
+  var db = indexer()
+
+  var foos = db.define(['foo', ':id'])
+
+  foos.map(['foo2', ':id', 'bar'])
+  foos.map(['foow', ':width'], ['id'])
+
+  var count = 0
+  foos.on('create', function(a) {
+    count++
+    if (count === 1) {
+      t.deepEqual(a.getValue(), {id: 1})
+    }
+    else if (count === 2) {
+      t.deepEqual(a.getValue(), {id: 3})
+    }
+    else {
+      t.fail()
+    }
+    a.data.default = 2
+  })
+
+  var count2 = 0
+  foos.on('change', function(a) {
+    count2++
+    if (count2 === 1) {
+      t.deepEqual(a.getValue(), {id: 1, width: 10, default: 2})
+    }
+    else if (count2 === 2) {
+      t.deepEqual(a.getValue(), {id: 3, width: 30, default: 2})
+    }
+    else {
+      t.fail()
+    }
+  })
+
+  db.set(['foo', 1], {width: 10})
+  db.set(['bar', 2], {width: 20})
+  db.set(['foo', 3], {width: 30})
+
+  t.deepEqual(db.getRange(['foo2']), [
+    {k: ['foo2', 1, 'bar'], v: {id: 1, width: 10, default: 2}},
+    {k: ['foo2', 3, 'bar'], v: {id: 3, width: 30, default: 2}}
+  ])
+
+  t.deepEqual(db.getRange(['foow'], undefined, {order: 'desc'}), [
+    {k: ['foow', 30], v: {id: 3}},
+    {k: ['foow', 10], v: {id: 1}}
+  ])
+
+})
