@@ -13,6 +13,12 @@ function delayFunction(sec) {
   }
 }
 
+function encode(a) {
+  return bytewise.encode(a).toString('binary')
+}
+function decode(a) {
+  return bytewise.decode(Buffer(a, 'binary'))
+}
 
 function MapResult(key, data, link) {
   this.key = key
@@ -51,8 +57,7 @@ MapDefinition.prototype.run = function(data) {
       }
     }
   }
-  return new MapResult(bytewise.encode(key).toString('binary'),
-    value, data)
+  return new MapResult(encode(key), value, data)
 }
 
 function identity(a) {
@@ -69,12 +74,12 @@ function intersects(a, b) {
 function Data(def, key, init) {
   this.def_ = def
   this.inTree_ = 0
-  this.key_ = key
+  this.key_ = encode(key)
   this.data = init || {}
   this.reducers_to_run_ = []
   this.map_ = []
   this.def_.emit('create', this)
-  this.def_.indexer.dispatch_('add', bytewise.encode(key).toString('binary'), this)
+  this.def_.indexer.dispatch_('add', this.key_, this)
 }
 
 Data.prototype.set = function(data) {
@@ -94,7 +99,7 @@ Data.prototype.set = function(data) {
   }
   if (changed.length) {
     this.def_.emit('change', this) // todo: emit old / preverntdefault
-    this.def_.indexer.dispatch_('update', bytewise.encode(this.key_).toString('binary'), this)
+    this.def_.indexer.dispatch_('update', this.key_, this)
     for (i = 0; i < this.def_.map_.length; i++) {
       var m = this.def_.map_[i].run(this)
 
@@ -181,7 +186,7 @@ Definition.prototype.getOrCreate = function(key) {
       params[this.key[i].substr(1)] = key[i]
     }
   }
-  var d = this.indexer.tree.get(bytewise.encode(key))
+  var d = this.indexer.tree.get(encode(key))
   if (!d) {
     d = new Data(this, key, params)
   }
@@ -201,8 +206,8 @@ Definition.prototype.reduce = function(property, func) {
 
 function Subscription(indexer, start, end) {
   EventEmitter.call(this)
-  this.start = bytewise.encode(start).toString('binary')
-  this.end = bytewise.encode(end).toString('binary')
+  this.start = encode(start)
+  this.end = encode(end)
   this.indexer = indexer
   this.streams_ = []
   this.indexer.log({start: this.start, end: this.end}, 'subscribe')
@@ -217,12 +222,11 @@ Subscription.prototype.close = function() {
 }
 
 Subscription.prototype.invalidate_ = function(type, k, v) {
-  var bkey = Buffer(k, 'binary')
   if (this.listeners(type).length) {
-    this.emit(type, bytewise.decode(bkey), v.getValue())
+    this.emit(type, decode(k), v.getValue())
   }
   for (var i = 0; i < this.streams_.length; i++) {
-    this.streams_[i].dispatch_(type[0], bkey, v)
+    this.streams_[i].dispatch_(type[0], k, v)
   }
 }
 
@@ -265,7 +269,7 @@ SubscribeStream.prototype.dispatch_ = function(type, k, v) {
 SubscribeStream.prototype.fire_ = function() {
   var result = []
   this.queue.walk(function(key, v) {
-    result.push({t: v.type, k: bytewise.decode(key), v: v.type === 'd' ? undefined : v.v.getValue()})
+    result.push({t: v.type, k: decode(key), v: v.type === 'd' ? undefined : v.v.getValue()})
   })
   this.emit('data', result)
   this.queue = new Tree
@@ -310,19 +314,19 @@ Indexer.prototype.get = function (key) {
 }
 Indexer.prototype.getValue = function(key) {
   if (this.has(key)) {
-    return this.tree.get(bytewise.encode(key)).getValue()
+    return this.tree.get(encode(key)).getValue()
   }
 }
 
 
 Indexer.prototype.has = function(key) {
   assert(key, key + ' is not a valid key')
-  return !!this.tree.get(bytewise.encode(key))
+  return !!this.tree.get(encode(key))
 }
 
 Indexer.prototype.del = function(key) {
   if (this.has(key)) {
-    this.tree.get(bytewise.encode(key)).del()
+    this.tree.get(encode(key)).del()
   }
 }
 
@@ -351,9 +355,9 @@ Indexer.prototype.getRange = function (start, end, options) {
   var result = []
   var i = 0
   var walk = order === 'desc' ? 'walkDesc' : 'walkAsc'
-  this.tree[walk](bytewise.encode(start), bytewise.encode(end), function(key, v) {
+  this.tree[walk](encode(start), encode(end), function(key, v) {
     if (limit !== -1 && ++i > limit) return true
-    result.push({k: bytewise.decode(key), v: v.getValue()})
+    result.push({k: decode(key), v: v.getValue()})
   })
   return result
 }
@@ -387,10 +391,10 @@ Indexer.prototype.subscribe = function (start, end) {
 
 Indexer.prototype.dispatch_ = function (type, k, v) {
   if (type === 'add') {
-    this.tree.put(Buffer(k, 'binary'), v)
+    this.tree.put(k, v)
   }
   else if (type === 'delete') {
-    this.tree.del(Buffer(k, 'binary'), v)
+    this.tree.del(k, v)
   }
   // r-tree?
   for (var i = 0; i < this.listeners_.length; i++) {
@@ -422,15 +426,7 @@ function Reducer(indexer, property, func) {
 }
 
 Reducer.prototype.set = function (key, id, value) {
-  var rkey
-  if (Array.isArray(key)) {
-    rkey = key.concat(id)
-  }
-  else {
-    rkey = [key, id]
-  }
-
-  rkey = bytewise.encode(rkey)
+  var rkey = encode([key, id])
 
   var current = this.tree.get(rkey)
   if (current && deepEqual(value, current)) { // todo: is this logical?
@@ -438,8 +434,7 @@ Reducer.prototype.set = function (key, id, value) {
   }
   this.tree.put(rkey, value)
 
-  var keyenc = bytewise.encode(key)
-  var current = this.indexer.tree.get(keyenc)
+  var current = this.indexer.tree.get(key)
   if (current === undefined) {
     assert.ok(false, 'reducer run for missing object')
   }
@@ -448,30 +443,14 @@ Reducer.prototype.set = function (key, id, value) {
 }
 
 Reducer.prototype.run = function(key) {
-  var lastkey, firstkey
-  if (Array.isArray(key)) {
-    lastkey = key.concat('\u9999')
-    firstkey = key
-  }
-  else {
-    firstkey = [key]
-    lastkey = [key, '\u9999']
-  }
-
   var values = []
-  this.tree.walk(bytewise.encode(firstkey), bytewise.encode(lastkey),
+  this.tree.walk(encode([key]), encode([key, '\u9999']),
     function(k, v) {
       values.push(v)
     }
   )
 
-  var keyenc = bytewise.encode(key)
-  var current = this.indexer.tree.get(keyenc)
-  // add this back when with del() support
-  // if (current === undefined) {
-  //   current = new Data
-  //   this.indexer.tree.put(keyenc, current)
-  // }
+  var current = this.indexer.tree.get(key)
   current.data[this.property] = this.func(values)
 }
 
