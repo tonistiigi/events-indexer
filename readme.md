@@ -38,12 +38,12 @@ db.has(key)
 db.del(key)
 
 var reader = db.subscribe(start, opt_end)
-reader.on('add', function() { })
-reader.on('update', function() { })
-reader.on('delete', function() { })
+reader.on('add', function(key, value) { })
+reader.on('update', function(key, value) { })
+reader.on('delete', function(key, value) { })
 reader.close()
 
-indexer.throttle(reader, .2).on('data', function(list) {
+reader.throttle(.2).on('data', function(list) {
 })
 
 var park = db.define(['fp', ':country', ':parkId'])
@@ -52,14 +52,21 @@ park.on('create', function(p, params) {
 park.on('change', function(p) {
 })
 
-park.defineReduce('wind', function(values) {
+park.reduce('wind', function(values) {
   return sum(values)
 })
 
-park.defineMap(function() {
+// static key only
+park.map(['fp_allparks', ':parkId'])
+
+// static key + format
+park.map(['fp_allparks', ':parkId'], function (o) {
+  return {name: o:name}
+})
+
+park.map(function() {
   if (this.wind > 100) return ['highwind', this.parkId]
 })
-park.defineMap(['fp_allparks', ':parkId'])
 
 
 

@@ -4,6 +4,44 @@ var assert = require('assert')
 var Stream = require('stream').Stream
 var inherits = require('util').inherits
 var EventEmitter = require('events').EventEmitter
+var deepEqual = require('deep-equal')
+
+function MapResult(key, data, link) {
+  this.key = key
+  this.data = null
+  this.status = 0
+  this.link = null
+}
+
+function MapDefinition(key, format) {
+  this.key = key
+  this.format = format
+}
+
+MapDefinition.prototype.run = function(data) {
+  var key = this.key.map(identity), f = this.format, res = null
+  if (!key) {
+    key = this.format(data.data)
+    if (typeof key[key.length - 1] === 'function') {
+      f = key.pop()
+    }
+  }
+  if (key) {
+    for (var i = 0; i < key.length; i++) {
+      if (key[i][0] === ':') {
+        key[i] = data.data[key[i].substr(1)]
+      }
+    }
+    res = new MapResult(bytewise.encode(key).toString('binary'),
+      f(data.data), data)
+  }
+  return res
+}
+
+
+function identity(a) {
+  return a
+}
 
 function Data(def, key, init) {
   this.def_ = def
@@ -11,6 +49,7 @@ function Data(def, key, init) {
   this.key_ = key
   this.data = init || {}
   this.reducers_to_run_ = []
+  this.map_ = []
   this.def_.emit('create', this)
 }
 
@@ -26,6 +65,34 @@ Data.prototype.set = function(data) {
   }
   if (changed) {
     this.def_.emit('change', this)
+    for (i = 0; i < this.def_.map_.length; i++) {
+      var m = this.def_.map_[i].run(this)
+
+      var exists = false
+      for (var j = 0; j < this.map_.length; j++) {
+        if (this.map_[j].key === m.key) {
+          if (!deepEqual(this.map_[j].data, m.data)) {
+            this.map_[j] = m
+            this.def_.indexer.dispatch_('update', m.key, m)
+          }
+          this.map_[j].status = 0
+          exists = true
+          break
+        }
+      }
+
+      if (!exists) {
+        this.map_.push(m)
+        this.def_.indexer.dispatch_('add', m.key, m)
+      }
+
+    }
+    for (var j = 0; j < this.map_.length; j++) {
+      if (this.map_[j].status === 1) {
+        this.map_.splice(j--, 1)
+        this.def_.indexer.dispatch_('delete', this.map_[j].key, m)
+      }
+    }
   }
   return this
 }
@@ -59,6 +126,8 @@ function Definition(indexer, key) {
   EventEmitter.call(this)
   this.indexer = indexer
   this.key = key
+  this.map_ = []
+  this.reduce_ = {}
 }
 inherits(Definition, EventEmitter)
 
@@ -85,8 +154,21 @@ Definition.prototype.getOrCreate = function(key) {
   var d = this.indexer.tree.get(bytewise.encode(key))
   if (!d) {
     d = new Data(this, key, params)
+    this.indexer.tree.put(bytewise.encode(key), d)
   }
   return d
+}
+
+Definition.prototype.map = function(key, format) {
+  if (typeof key === 'function') {
+    format = key
+    key = null
+  }
+  this.map_.push(new MapDefinition(key, format || identity))
+}
+
+Definition.prototype.reduce = function(name, func) {
+  this.reduce_[name] = func
 }
 
 function Subscription(indexer, start, end) {
@@ -120,7 +202,7 @@ Subscription.prototype.processQueue_ = function() {
   this.tm = 0
 }
 
-Subscription.prototype.invalidate_ = function(k, v) {
+Subscription.prototype.invalidate_ = function(type, k, v) {
   if (!this.throttle) {
     return this.emit('data', [{k: k, v: v.getData()}])
   }
@@ -268,13 +350,19 @@ Indexer.prototype.subscribe = function (start, end) {
   return s
 }
 
-Indexer.prototype.dispatch_ = function (k, v) {
-  var keyenc = bytewise.encode(k).toString('binary')
+Indexer.prototype.dispatch_ = function (type, k, v) {
+  if (type === 'add') {
+    this.tree.put(Buffer(k, 'binary'), v)
+  }
+  else if (type === 'delete') {
+    this.tree.del(Buffer(k, 'binary'), v)
+  }
+
   // r-tree?
   for (var i = 0; i < this.listeners_.length; i++) {
     var s = this.listeners_[i]
     if (s.start <= keyenc && s.end >= keyenc) {
-      s.invalidate_(k, v)
+      s.invalidate_(type, k, v)
     }
   }
 }
