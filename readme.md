@@ -60,13 +60,13 @@ park.reduce('wind', function(values) {
 park.map(['fp_allparks', ':parkId'])
 
 // static key + format
-park.map(['fp_allparks', ':parkId'], function (o) {
-  return {name: o:name}
-})
+park.map(['fp_allparks', ':parkId'], ['name'])
 
+// dynamic key only
 park.map(function() {
   if (this.wind > 100) return ['highwind', this.parkId]
-})
+}, ['name'])
+
 
 
 

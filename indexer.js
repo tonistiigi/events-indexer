@@ -8,39 +8,54 @@ var deepEqual = require('deep-equal')
 
 function MapResult(key, data, link) {
   this.key = key
-  this.data = null
+  this.data = data
   this.status = 0
   this.link = null
 }
 
-function MapDefinition(key, format) {
+MapResult.prototype.getValue = function() {
+  // todo: process reducers
+  // todo: combine for same v8 hidden class
+  return this.data
+}
+
+function MapDefinition(key, fields) {
   this.key = key
-  this.format = format
+  this.fields = fields
 }
 
 MapDefinition.prototype.run = function(data) {
-  var key = this.key.map(identity), f = this.format, res = null
-  if (!key) {
-    key = this.format(data.data)
-    if (typeof key[key.length - 1] === 'function') {
-      f = key.pop()
+  var key = this.key.map(identity)
+  if (typeof this.key === 'function') {
+    key = this.key(data.data)
+  }
+  for (var i = 0; i < key.length; i++) {
+    if (key[i][0] === ':') {
+      key[i] = data.data[key[i].substr(1)]
     }
   }
-  if (key) {
-    for (var i = 0; i < key.length; i++) {
-      if (key[i][0] === ':') {
-        key[i] = data.data[key[i].substr(1)]
+  var value = data.data
+  if (this.fields) {
+    value = {}
+    for (var i = 0; i < this.fields.length; i++) {
+      if (data.data[this.fields[i]] !== undefined) {
+        value[this.fields[i]] = data.data[this.fields[i]]
       }
     }
-    res = new MapResult(bytewise.encode(key).toString('binary'),
-      f(data.data), data)
   }
-  return res
+  return new MapResult(bytewise.encode(key).toString('binary'),
+    value, data)
 }
-
 
 function identity(a) {
   return a
+}
+
+function intersects(a, b) {
+  for (var i = 0; i < a.length; i++) {
+    if (-1 !== b.indexOf(a[i])) return true // todo: check v8 inlining
+  }
+  return false
 }
 
 function Data(def, key, init) {
@@ -51,32 +66,34 @@ function Data(def, key, init) {
   this.reducers_to_run_ = []
   this.map_ = []
   this.def_.emit('create', this)
+  this.def_.indexer.dispatch_('add', bytewise.encode(key), this)
 }
 
 Data.prototype.set = function(data) {
   assert.ok(data, 'invalid object')
 
-  var changed = false
+  var changed = []
   for (var i in data) {
     if (this.data[i] !== data[i]) {
       this.data[i] = data[i]
-      changed = true
+      changed.push(i)
     }
   }
-  if (changed) {
-    this.def_.emit('change', this)
+  if (changed.length) {
+    this.def_.emit('change', this) // todo: emit old / preverntdefault
     for (i = 0; i < this.def_.map_.length; i++) {
       var m = this.def_.map_[i].run(this)
 
       var exists = false
       for (var j = 0; j < this.map_.length; j++) {
         if (this.map_[j].key === m.key) {
-          if (!deepEqual(this.map_[j].data, m.data)) {
+          if (!m.def.fields || intersects(m.def.fields, changed)) {
             this.map_[j] = m
             this.def_.indexer.dispatch_('update', m.key, m)
           }
           this.map_[j].status = 0
           exists = true
+          console.log('exists')
           break
         }
       }
@@ -84,6 +101,7 @@ Data.prototype.set = function(data) {
       if (!exists) {
         this.map_.push(m)
         this.def_.indexer.dispatch_('add', m.key, m)
+        console.log('add', m.key, this.key_)
       }
 
     }
@@ -97,7 +115,7 @@ Data.prototype.set = function(data) {
   return this
 }
 
-Data.prototype.getData = function() {
+Data.prototype.getValue = function(fields) {
   if (this.reducers_to_run_.length) {
     this.processReducers()
   }
@@ -154,17 +172,12 @@ Definition.prototype.getOrCreate = function(key) {
   var d = this.indexer.tree.get(bytewise.encode(key))
   if (!d) {
     d = new Data(this, key, params)
-    this.indexer.tree.put(bytewise.encode(key), d)
   }
   return d
 }
 
-Definition.prototype.map = function(key, format) {
-  if (typeof key === 'function') {
-    format = key
-    key = null
-  }
-  this.map_.push(new MapDefinition(key, format || identity))
+Definition.prototype.map = function(key, fields) {
+  this.map_.push(new MapDefinition(key, fields))
 }
 
 Definition.prototype.reduce = function(name, func) {
@@ -278,6 +291,14 @@ Indexer.prototype.get = function (key) {
 
   return this.default_.getOrCreate(key)
 }
+Indexer.prototype.getValue = function(key) {
+  if (this.has(key)) {
+    return this.tree.get(bytewise.encode(key)).getValue()
+  }
+  else {
+    return null
+  }
+}
 
 
 Indexer.prototype.has = function(key) {
@@ -318,7 +339,7 @@ Indexer.prototype.getRange = function (start, end, options) {
   var walk = order === 'desc' ? 'walkDesc' : 'walkAsc'
   this.tree[walk](bytewise.encode(start), bytewise.encode(end), function(key, v) {
     if (limit !== -1 && ++i > limit) return true
-    result.push({k: bytewise.decode(key), v: v.getData()})
+    result.push({k: bytewise.decode(key), v: v.getValue()})
   })
   return result
 }
