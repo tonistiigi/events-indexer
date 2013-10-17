@@ -7,24 +7,24 @@ test('get/set strings', function(t) {
 
   var db = indexer()
 
-  db.set('foo', 'width', 1)
-  db.set('bar', 'width', 2)
-  db.set('foo', 'height', 3)
+  db.set('foo', {width: 1})
+  db.set('bar', {width: 2})
+  db.set('foo', {height: 3})
 
-  t.deepEqual(db.get('foo'), {width: 1, height: 3})
-  t.deepEqual(db.get('bar'), {width: 2})
+  t.deepEqual(db.getValue('foo'), {width: 1, height: 3})
+  t.deepEqual(db.getValue('bar'), {width: 2})
 
-  var bar = db.get('bar')
-  db.set('bar', 'width', 4)
+  var bar = db.getValue('bar')
+  db.set('bar', {width: 4})
 
-  t.deepEqual(db.get('bar'), {width: 4})
-  t.equal(db.get('bar'), bar)
+  t.deepEqual(db.getValue('bar'), {width: 4})
+  t.equal(db.getValue('bar'), bar)
 
   db.set('foo', {width: 5, size: 6})
 
-  t.deepEqual(db.get('foo'), {width: 5, size: 6, height: 3})
-  t.equal(db.get('nosuchkey'), undefined)
-  t.equal(db.get('bar '), undefined)
+  t.deepEqual(db.getValue('foo'), {width: 5, size: 6, height: 3})
+  t.equal(db.getValue('nosuchkey'), undefined)
+  t.equal(db.getValue('bar '), undefined)
 
 })
 
@@ -33,19 +33,19 @@ test('get/set arrays', function(t) {
 
   var db = indexer()
 
-  db.set(['foo', 'baz'], 'width', 11)
-  db.set(['bar', 12], 'width', 12)
+  db.set(['foo', 'baz'], {width: 11})
+  db.set(['bar', 12], {width: 12})
 
-  t.deepEqual(db.get(['foo', 'baz']), {width: 11})
-  t.deepEqual(db.get(['bar', 12]), {width: 12})
+  t.deepEqual(db.getValue(['foo', 'baz']), {width: 11})
+  t.deepEqual(db.getValue(['bar', 12]), {width: 12})
 
-  db.set(['bar', 12], 'height', 13)
+  db.set(['bar', 12], {height: 13})
 
-  t.deepEqual(db.get(['bar', 12]), {width: 12, height: 13})
+  t.deepEqual(db.getValue(['bar', 12]), {width: 12, height: 13})
 
-  t.equal(db.get([]), undefined)
-  t.equal(db.get(['foo']), undefined)
-  t.equal(db.get(['foo', 'baz', '']), undefined)
+  t.equal(db.getValue([]), undefined)
+  t.equal(db.getValue(['foo']), undefined)
+  t.equal(db.getValue(['foo', 'baz', '']), undefined)
 
 
 })
@@ -99,9 +99,9 @@ test('range strings', function(t) {
 
   var db = indexer()
 
-  db.set('foo', 'width', 1)
-  db.set('bar', 'width', 2)
-  db.set('fao', 'width', 3)
+  db.set('foo', {width: 1})
+  db.set('bar', {width: 2})
+  db.set('fao', {width: 3})
 
   t.deepEqual(db.getRange(), [
     {k: 'bar', v: {width: 2}},
@@ -122,16 +122,15 @@ test('range strings', function(t) {
 
 })
 
-
 test('range arrays', function(t) {
   t.plan(3)
 
   var db = indexer()
 
-  db.set(['foo', 11], 'width', 1)
-  db.set(['bar', 12], 'width', 2)
-  db.set(['fao', 13], 'width', 3)
-  db.set(['foo', 10], 'width', 4)
+  db.set(['foo', 11], {width: 1})
+  db.set(['bar', 12], {width: 2})
+  db.set(['fao', 13], {width: 3})
+  db.set(['foo', 10], {width: 4})
 
   t.deepEqual(db.getRange(undefined, undefined, {order: 'desc', limit: 3}), [
     {k: ['foo', 11], v: {width: 1}},
@@ -147,7 +146,7 @@ test('range arrays', function(t) {
   t.deepEqual(db.getRange(['foo', 'a'], ['\u9999']), [])
 
 })
-
+/*
 
 test('reduce', function(t) {
   t.plan(4)
@@ -185,14 +184,14 @@ test('reduce', function(t) {
   })
 
 })
-
+*/
 test('subscribe', function(t) {
   t.plan(7)
 
   var db = indexer()
 
-  db.set(['foo', 11], 'width', 1)
-  db.set(['bar', 12], 'width', 2)
+  db.set(['foo', 11], {width: 1})
+  db.set(['bar', 12], {width: 2})
 
   var foo = db.subscribe(['foo'], ['foo', '\u9999'])
   var all = db.subscribe()
@@ -257,25 +256,25 @@ test('subscribe', function(t) {
     }
   })
 
-  db.set(['bat', 10], 'width', 10)
-  db.set(['bar', 12], 'height', 12)
+  db.set(['bat', 10], {width: 10})
+  db.set(['bar', 12], {height: 12})
   db.set(['foo', 11], {width: 2})
 
   all.close()
 
-  db.set(['fob', 10], 'width', 10)
-  db.set(['foo', 12], 'height', 2)
+  db.set(['fob', 10], {width: 10})
+  db.set(['foo', 12], {height: 2})
   db.set(['fob', 10], {width: 10})
 
-  db.set(['foo', 11], 'width', 2)
+  db.set(['foo', 11], {width: 2})
 
   foo.close()
   bar.close()
 
-  db.set(['foo', 11], 'width', 20)
+  db.set(['foo', 11], {width: 20})
 
 })
-
+/*
 test('subscribe reducers', function(t) {
   t.plan(3)
 
@@ -375,7 +374,7 @@ test("throttled subscribe", function(t) {
   }, 300)
 
 })
-
+*/
 test("range query without end argument", function(t) {
   t.plan(3)
 

@@ -66,7 +66,7 @@ function Data(def, key, init) {
   this.reducers_to_run_ = []
   this.map_ = []
   this.def_.emit('create', this)
-  this.def_.indexer.dispatch_('add', bytewise.encode(key), this)
+  this.def_.indexer.dispatch_('add', bytewise.encode(key).toString('binary'), this)
 }
 
 Data.prototype.set = function(data) {
@@ -81,6 +81,7 @@ Data.prototype.set = function(data) {
   }
   if (changed.length) {
     this.def_.emit('change', this) // todo: emit old / preverntdefault
+    this.def_.indexer.dispatch_('update', bytewise.encode(this.key_).toString('binary'), this)
     for (i = 0; i < this.def_.map_.length; i++) {
       var m = this.def_.map_[i].run(this)
 
@@ -93,7 +94,6 @@ Data.prototype.set = function(data) {
           }
           this.map_[j].status = 0
           exists = true
-          console.log('exists')
           break
         }
       }
@@ -101,7 +101,6 @@ Data.prototype.set = function(data) {
       if (!exists) {
         this.map_.push(m)
         this.def_.indexer.dispatch_('add', m.key, m)
-        console.log('add', m.key, this.key_)
       }
 
     }
@@ -217,7 +216,8 @@ Subscription.prototype.processQueue_ = function() {
 
 Subscription.prototype.invalidate_ = function(type, k, v) {
   if (!this.throttle) {
-    return this.emit('data', [{k: k, v: v.getData()}])
+    if (type != 'update') return //todo:
+    return this.emit('data', [{k: bytewise.decode(Buffer(k, 'binary')), v: v.getValue()}])
   }
 
   this.queue.put(bytewise.encode(k), v)
@@ -237,40 +237,12 @@ function Indexer(opt) {
   this.log = opt.log  || function() {}
 }
 
-/*
-Indexer.prototype.set = function (key, property, value) {
+Indexer.prototype.set = function (key, value) {
   assert(key, key + ' is not a valid key')
-  assert.ok(property, 'invalid property')
+  assert.ok(value, 'invalid value')
 
-  var enckey = bytewise.encode(key)
-  var current = this.tree.get(enckey)
-
-  if (current === undefined) {
-    current = new Data(key)
-    this.tree.put(enckey, current)
-  }
-
-  if (typeof property === 'string') {
-    if (current.data[property] !== value) {
-      current.data[property] = value
-      this.dispatch_(key, current)
-    }
-  }
-  else {
-    var changed = false
-    var object = property
-    for (var i in object) {
-      if (current.data[i] !== object[i]) {
-        current.data[i] = object[i]
-        changed = true
-      }
-    }
-    if (changed) {
-      this.dispatch_(key, current)
-    }
-  }
-
-}*/
+  this.get(key).set(value)
+}
 
 
 Indexer.prototype.define = function (key) {
@@ -294,9 +266,6 @@ Indexer.prototype.get = function (key) {
 Indexer.prototype.getValue = function(key) {
   if (this.has(key)) {
     return this.tree.get(bytewise.encode(key)).getValue()
-  }
-  else {
-    return null
   }
 }
 
@@ -378,11 +347,10 @@ Indexer.prototype.dispatch_ = function (type, k, v) {
   else if (type === 'delete') {
     this.tree.del(Buffer(k, 'binary'), v)
   }
-
   // r-tree?
   for (var i = 0; i < this.listeners_.length; i++) {
     var s = this.listeners_[i]
-    if (s.start <= keyenc && s.end >= keyenc) {
+    if (s.start <= k && s.end >= k) {
       s.invalidate_(type, k, v)
     }
   }
