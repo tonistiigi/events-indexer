@@ -551,7 +551,7 @@ test("reducers in map", function(t) {
 })
 
 test("deletions in map", function(t) {
-  t.plan(2)
+  t.plan(4)
 
   var db = indexer()
 
@@ -582,5 +582,14 @@ test("deletions in map", function(t) {
     { k: [ 'by_visibility', 1, 3 ], v: {} }
   ])
 
+  db.del(['foo', 1])
+
+  t.deepEqual(db.getRange(['by_visibility', 1]), [
+    { k: [ 'by_visibility', 1, 3 ], v: {} }
+  ])
+  t.deepEqual(db.getRange(['foo']), [
+    { k: [ 'foo', 2 ], v: { id: 2, visible: false } },
+    { k: [ 'foo', 3 ], v: { id: 3, visible: true } }
+  ])
 
 })

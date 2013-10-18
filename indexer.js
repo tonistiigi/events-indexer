@@ -168,8 +168,11 @@ Data.prototype.processReducers = function(fields) {
   }
 }
 Data.prototype.del = function() {
-  // todo
-  assert.ok(false)
+  this.def_.indexer.dispatch_('delete', this.key_, this)
+  for (var j = 0; j < this.map_.length; j++) {
+    var m = this.map_[j]
+    this.def_.indexer.dispatch_('delete', m.key, m)
+  }
 }
 
 
@@ -342,7 +345,7 @@ Indexer.prototype.has = function(key) {
 
 Indexer.prototype.del = function(key) {
   if (this.has(key)) {
-    this.tree.get(encode(key)).del()
+    this.get(key).del()
   }
 }
 
