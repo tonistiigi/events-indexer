@@ -20,16 +20,17 @@ function decode(a) {
   return bytewise.decode(Buffer(a, 'binary'))
 }
 
-function MapResult(key, data, link) {
+function MapResult(key, data, def, link) {
   this.key = key
   this.data = data
+  this.def = def
   this.status = 0
-  this.link = null
+  this.link = link
 }
 
 MapResult.prototype.getValue = function() {
-  // todo: process reducers
   // todo: combine for same v8 hidden class
+  this.link.processReducers(this.def.fields)
   return this.data
 }
 
@@ -39,9 +40,12 @@ function MapDefinition(key, fields) {
 }
 
 MapDefinition.prototype.run = function(data) {
-  var key = this.key.map(identity)
+  var key
   if (typeof this.key === 'function') {
     key = this.key(data.data)
+  }
+  else {
+    key = this.key.map(identity)
   }
   for (var i = 0; i < key.length; i++) {
     if (key[i][0] === ':') {
@@ -57,7 +61,7 @@ MapDefinition.prototype.run = function(data) {
       }
     }
   }
-  return new MapResult(encode(key), value, data)
+  return new MapResult(encode(key), value, this, data)
 }
 
 function identity(a) {
@@ -145,11 +149,20 @@ Data.prototype.invalidateReducer = function(r) {
   }
 }
 
-Data.prototype.processReducers = function() {
+Data.prototype.processReducers = function(fields) {
   for (var i = 0; i < this.reducers_to_run_.length; i++) {
-    this.reducers_to_run_[i].run(this.key_)
+    var r = this.reducers_to_run_[i]
+    if (!fields || -1 !== fields.indexOf(r.property)) {
+      this.reducers_to_run_[i].run(this.key_)
+      this.reducers_to_run_.splice(i--, 1)
+    }
+    for (var j = 0; j < this.map_.length; j++) {
+      var m = this.map_[j]
+      if (!m.def.fields || -1 !== m.def.fields.indexOf(r.property)) {
+        m.data[r.property] = this.data[r.property]
+      }
+    }
   }
-  this.reducers_to_run_ = []
 }
 Data.prototype.del = function() {
   // todo
@@ -396,6 +409,9 @@ Indexer.prototype.dispatch_ = function (type, k, v) {
   else if (type === 'delete') {
     this.tree.del(k, v)
   }
+  else if (type === 'update') {
+    this.tree.put(k, v)
+  }
   // r-tree?
   for (var i = 0; i < this.listeners_.length; i++) {
     var s = this.listeners_[i]
@@ -449,7 +465,6 @@ Reducer.prototype.run = function(key) {
       values.push(v)
     }
   )
-
   var current = this.indexer.tree.get(key)
   current.data[this.property] = this.func(values)
 }

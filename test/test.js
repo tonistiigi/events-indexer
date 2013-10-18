@@ -460,3 +460,51 @@ test("map definitions", function(t) {
   ])
 
 })
+
+test("reducers in map", function(t) {
+  t.plan(3)
+
+  var db = indexer()
+
+  var foos = db.define(['foo', ':id'])
+
+  foos.reduce('width', function(v) {
+    return v.reduce(function(memo, a) {
+      return memo + a
+    }, 0)
+  })
+
+  foos.map(function(t) {
+    return ['bar', t.bar.toUpperCase()]
+  }, ['width'])
+
+  foos.on('add', function(k) {
+    console.log('add', k)
+  })
+  foos.on('update', function(k) {
+    console.log('add', k)
+  })
+
+  db.set(['foo', 1], {bar: 'bb', width: [1, 3]})
+  db.set(['foo', 1], {width: [2, 7]})
+  db.set(['foo', 2], {bar: 'aa', width: [1, 9]})
+  db.set(['foo', 1], {width: [3, 11]})
+
+  t.deepEqual(db.getRange(['bar']), [
+    { k: [ 'bar', 'AA' ], v: { width: 9 } },
+    { k: [ 'bar', 'BB' ], v: { width: 21 } }
+  ])
+
+  db.set(['foo', 1], {width: [2, 7]})
+  t.deepEqual(db.getRange(['bar']), [
+    { k: [ 'bar', 'AA' ], v: { width: 9 } },
+    { k: [ 'bar', 'BB' ], v: { width: 21 } }
+  ])
+
+  db.set(['foo', 1], {width: [4, 7]})
+  t.deepEqual(db.getRange(['bar']), [
+    { k: [ 'bar', 'AA' ], v: { width: 9 } },
+    { k: [ 'bar', 'BB' ], v: { width: 28 } }
+  ])
+
+})
