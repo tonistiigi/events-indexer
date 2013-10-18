@@ -128,8 +128,11 @@ Data.prototype.set = function(data) {
     }
     for (var j = 0; j < this.map_.length; j++) {
       if (this.map_[j].status === 1) {
-        this.map_.splice(j--, 1)
         this.def_.indexer.dispatch_('delete', this.map_[j].key, m)
+        this.map_.splice(j--, 1)
+      }
+      else {
+        this.map_[j].status = 1
       }
     }
   }

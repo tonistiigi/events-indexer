@@ -508,3 +508,79 @@ test("reducers in map", function(t) {
   ])
 
 })
+
+test("reducers in map", function(t) {
+  t.plan(3)
+
+  var db = indexer()
+
+  var foos = db.define(['foo', ':id'])
+
+  foos.reduce('width', function(v) {
+    return v.reduce(function(memo, a) {
+      return memo + a
+    }, 0)
+  })
+
+  foos.map(function(t) {
+    return ['bar', t.bar.toUpperCase()]
+  }, ['width'])
+
+  db.set(['foo', 1], {bar: 'bb', width: [1, 3]})
+  db.set(['foo', 1], {width: [2, 7]})
+  db.set(['foo', 2], {bar: 'aa', width: [1, 9]})
+  db.set(['foo', 1], {width: [3, 11]})
+
+  t.deepEqual(db.getRange(['bar']), [
+    { k: [ 'bar', 'AA' ], v: { width: 9 } },
+    { k: [ 'bar', 'BB' ], v: { width: 21 } }
+  ])
+
+  db.set(['foo', 1], {width: [2, 7]})
+  t.deepEqual(db.getRange(['bar']), [
+    { k: [ 'bar', 'AA' ], v: { width: 9 } },
+    { k: [ 'bar', 'BB' ], v: { width: 21 } }
+  ])
+
+  db.set(['foo', 1], {width: [4, 7]})
+  t.deepEqual(db.getRange(['bar']), [
+    { k: [ 'bar', 'AA' ], v: { width: 9 } },
+    { k: [ 'bar', 'BB' ], v: { width: 28 } }
+  ])
+
+})
+
+test("deletions in map", function(t) {
+  t.plan(2)
+
+  var db = indexer()
+
+  var foos = db.define(['foo', ':id'])
+
+  foos.on('create', function(f) {
+    f.set({visible: true})
+  })
+
+  foos.map(function(t) {
+    return ['by_visibility', t.visible ? 1 : 0, t.id]
+  }, [])
+
+  db.set(['foo', 1], {})
+  db.set(['foo', 2], {})
+  db.set(['foo', 3], {})
+
+  t.deepEqual(db.getRange(['by_visibility', 1]), [
+    { k: [ 'by_visibility', 1, 1 ], v: {} },
+    { k: [ 'by_visibility', 1, 2 ], v: {} },
+    { k: [ 'by_visibility', 1, 3 ], v: {} }
+  ])
+
+  db.set(['foo', 2], {visible: false})
+
+  t.deepEqual(db.getRange(['by_visibility', 1]), [
+    { k: [ 'by_visibility', 1, 1 ], v: {} },
+    { k: [ 'by_visibility', 1, 3 ], v: {} }
+  ])
+
+
+})
