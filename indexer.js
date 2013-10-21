@@ -92,6 +92,7 @@ Data.prototype.set = function(data) {
   var changed = []
   for (var i in data) {
     if (this.def_.reduce_[i]) {
+      assert.equal(data[i].length, 2, 'Reducer requires unique index: ' + i)
       if (this.def_.reduce_[i].set(this.key_, data[i][0], data[i][1])) {
         changed.push(i)
       }
@@ -448,18 +449,23 @@ function Reducer(indexer, property, func) {
 }
 
 Reducer.prototype.set = function (key, id, value) {
-  var rkey = encode([key, id])
+  assert(value !== undefined, 'Value ' + value + ' not allowed for reducer, id='
+    + id + ', property=' + this.property)
 
+  var rkey = encode([key, id])
   var current = this.tree.get(rkey)
+
   if (current && deepEqual(value, current)) { // todo: is this logical?
     return false
   }
+
   this.tree.put(rkey, value)
 
   var current = this.indexer.tree.get(key)
   if (current === undefined) {
     assert.ok(false, 'reducer run for missing object')
   }
+
   current.invalidateReducer(this)
   return true
 }
